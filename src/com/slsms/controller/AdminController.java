@@ -77,7 +77,7 @@ public class AdminController {
         HBox stats = new HBox(20);
         
         // Calculate Global Stats
-        double revenue = getDoubleValue("SELECT SUM(final_price) FROM sales");
+        double revenue = getDoubleValue("SELECT SUM(total_amount) FROM sales");
         String formattedRevenue = currencyFormatter.format(revenue);
         int totalSales = getIntValue("SELECT COUNT(*) FROM sales");
         int totalAgents = getIntValue("SELECT COUNT(*) FROM users WHERE role='AGENT'");
@@ -104,7 +104,7 @@ public class AdminController {
         Label title = new Label("Manage Sales Agents");
         title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
-        // 1. Add Agent Form
+        // Add Agent Form
         HBox addBox = new HBox(10);
         addBox.setStyle("-fx-background-color: white; -fx-padding: 15; -fx-background-radius: 5;");
         addBox.setAlignment(Pos.CENTER_LEFT);
@@ -112,11 +112,10 @@ public class AdminController {
         TextField nameF = new TextField(); nameF.setPromptText("Full Name");
         TextField userF = new TextField(); userF.setPromptText("Username");
         PasswordField passF = new PasswordField(); passF.setPromptText("Password");
-        Button addBtn = new Button("Add Agent");
-        addBtn.setStyle("-fx-background-color: #27AE60; -fx-text-fill: white;");
+        Button addBtn = new Button("Add Agent"); addBtn.setStyle("-fx-background-color: #27AE60; -fx-text-fill: white;");
         Label msg = new Label();
 
-        TableView<User> table = new TableView<>(); // Define table here so we can refresh it
+        TableView<User> table = new TableView<>();
 
         addBtn.setOnAction(e -> {
             try (Connection conn = DBConnection.getConnection()) {
@@ -128,13 +127,13 @@ public class AdminController {
                 stmt.executeUpdate();
                 msg.setText("Agent Added!"); msg.setStyle("-fx-text-fill: green;");
                 nameF.clear(); userF.clear(); passF.clear();
-                refreshAgentTable(table); // Refresh list
+                refreshAgentTable(table);
             } catch (Exception ex) { msg.setText("Error: " + ex.getMessage()); }
         });
 
         addBox.getChildren().addAll(new Label("New Agent:"), nameF, userF, passF, addBtn, msg);
 
-        // 2. Agent List Table
+        // Agent List
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         TableColumn<User, String> c1 = new TableColumn<>("ID"); c1.setCellValueFactory(new PropertyValueFactory<>("userId"));
         TableColumn<User, String> c2 = new TableColumn<>("Full Name"); c2.setCellValueFactory(new PropertyValueFactory<>("fullName"));
@@ -159,7 +158,7 @@ public class AdminController {
     }
 
     // ==========================================================
-    // 4. ALL SALES (READ ONLY)
+    // 4. ALL SALES (READ ONLY + Agent Name)
     // ==========================================================
     @FXML
     public void showAllSales() {
@@ -174,18 +173,19 @@ public class AdminController {
         TableColumn<Sale, String> c1 = new TableColumn<>("Date"); c1.setCellValueFactory(new PropertyValueFactory<>("date"));
         TableColumn<Sale, String> c2 = new TableColumn<>("Land"); c2.setCellValueFactory(new PropertyValueFactory<>("landLocation"));
         TableColumn<Sale, String> c3 = new TableColumn<>("Buyer"); c3.setCellValueFactory(new PropertyValueFactory<>("buyerName"));
-        TableColumn<Sale, String> c4 = new TableColumn<>("Sold By (Agent)"); c4.setCellValueFactory(new PropertyValueFactory<>("agentName"));
-        TableColumn<Sale, String> c5 = new TableColumn<>("Price"); c5.setCellValueFactory(new PropertyValueFactory<>("price"));
+        TableColumn<Sale, String> c4 = new TableColumn<>("Agent"); c4.setCellValueFactory(new PropertyValueFactory<>("agentName"));
+        TableColumn<Sale, Double> c5 = new TableColumn<>("Total Amount"); c5.setCellValueFactory(new PropertyValueFactory<>("totalAmount"));
+        TableColumn<Sale, Double> c6 = new TableColumn<>("Paid"); c6.setCellValueFactory(new PropertyValueFactory<>("paidAmount"));
+        TableColumn<Sale, Double> c7 = new TableColumn<>("Balance"); c7.setCellValueFactory(new PropertyValueFactory<>("remainingBalance"));
 
-        table.getColumns().addAll(c1, c2, c3, c4, c5);
+        table.getColumns().addAll(c1, c2, c3, c4, c5, c6, c7);
 
         ObservableList<Sale> data = FXCollections.observableArrayList();
-        // JOIN Users table to get Agent Name
-        String sql = "SELECT s.sale_id, l.location, b.name, u.full_name as agent_name, s.final_price, s.sale_date " +
+        String sql = "SELECT s.sale_id, l.location, b.name, u.full_name as agent_name, s.total_amount, s.paid_amount, s.remaining_balance, s.payment_method, s.sale_date " +
                      "FROM sales s " +
                      "JOIN lands l ON s.land_id = l.land_id " +
                      "JOIN buyers b ON s.buyer_id = b.buyer_id " +
-                     "LEFT JOIN users u ON s.agent_id = u.user_id " + // Use LEFT JOIN in case agent was deleted
+                     "LEFT JOIN users u ON s.agent_id = u.user_id " +
                      "ORDER BY s.sale_date DESC";
 
         try (Connection conn = DBConnection.getConnection();
@@ -196,7 +196,10 @@ public class AdminController {
                     rs.getString("location"), 
                     rs.getString("name"), 
                     rs.getString("agent_name"), // Agent Name
-                    rs.getDouble("final_price"), 
+                    rs.getDouble("total_amount"),
+                    rs.getDouble("paid_amount"),
+                    rs.getDouble("remaining_balance"),
+                    rs.getString("payment_method"),
                     rs.getString("sale_date")
                 ));
             }
@@ -208,7 +211,7 @@ public class AdminController {
     }
 
     // ==========================================================
-    // 5. ALL BUYERS (READ ONLY)
+    // 5. ALL BUYERS (READ ONLY + Agent Name)
     // ==========================================================
     @FXML
     public void showAllBuyers() {
@@ -223,14 +226,13 @@ public class AdminController {
         TableColumn<Buyer, String> c1 = new TableColumn<>("Name"); c1.setCellValueFactory(new PropertyValueFactory<>("name"));
         TableColumn<Buyer, String> c2 = new TableColumn<>("Phone"); c2.setCellValueFactory(new PropertyValueFactory<>("phone"));
         TableColumn<Buyer, String> c3 = new TableColumn<>("Budget"); c3.setCellValueFactory(new PropertyValueFactory<>("budget"));
-        TableColumn<Buyer, String> c4 = new TableColumn<>("Pref. Location"); c4.setCellValueFactory(new PropertyValueFactory<>("location"));
+        TableColumn<Buyer, String> c4 = new TableColumn<>("Location"); c4.setCellValueFactory(new PropertyValueFactory<>("location"));
         TableColumn<Buyer, String> c5 = new TableColumn<>("Managed By"); c5.setCellValueFactory(new PropertyValueFactory<>("agentName"));
 
         table.getColumns().addAll(c1, c2, c3, c4, c5);
 
         ObservableList<Buyer> data = FXCollections.observableArrayList();
-        String sql = "SELECT b.*, u.full_name as agent_name FROM buyers b " +
-                     "LEFT JOIN users u ON b.agent_id = u.user_id";
+        String sql = "SELECT b.*, u.full_name as agent_name FROM buyers b LEFT JOIN users u ON b.agent_id = u.user_id";
 
         try (Connection conn = DBConnection.getConnection();
              ResultSet rs = conn.createStatement().executeQuery(sql)) {
@@ -252,7 +254,7 @@ public class AdminController {
     }
 
     // ==========================================================
-    // 6. ALL VISITS (READ ONLY)
+    // 6. ALL VISITS (READ ONLY + Agent Name)
     // ==========================================================
     @FXML
     public void showAllVisits() {
@@ -286,7 +288,7 @@ public class AdminController {
                 data.add(new Visit(
                     rs.getInt("visit_id"), 
                     rs.getString("name"), 
-                    rs.getString("agent_name"), // Agent
+                    rs.getString("agent_name"), // Agent Name
                     rs.getString("location"), 
                     rs.getString("fmt_date"), 
                     rs.getString("status")

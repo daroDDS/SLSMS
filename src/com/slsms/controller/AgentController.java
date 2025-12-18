@@ -27,6 +27,7 @@ public class AgentController {
     @FXML private StackPane contentArea;
     private final NumberFormat currencyFormatter = NumberFormat.getInstance(Locale.FRENCH);
 
+    // Helper: Get Logged-in Agent ID
     private int getAgentId() {
         if (UserSession.getInstance() == null) return 0;
         return UserSession.getInstance().getUserId();
@@ -38,7 +39,7 @@ public class AgentController {
     }
 
     // =============================================================
-    // 1. PROFILE & DASHBOARD
+    // 1. PROFILE
     // =============================================================
     @FXML
     public void showProfile() {
@@ -59,6 +60,7 @@ public class AgentController {
 
         VBox details = new VBox(10);
         details.setAlignment(Pos.CENTER_LEFT);
+        details.setMaxWidth(300);
         details.getChildren().addAll(
             new Label("Username: " + user.getUsername()),
             new Label("Role: " + user.getRole()),
@@ -69,6 +71,9 @@ public class AgentController {
         contentArea.getChildren().add(card);
     }
 
+    // =============================================================
+    // 2. DASHBOARD
+    // =============================================================
     @FXML
     public void showDashboard() {
         contentArea.getChildren().clear();
@@ -89,7 +94,7 @@ public class AgentController {
     }
 
     // =============================================================
-    // 2. INVENTORY
+    // 3. INVENTORY (My Lands)
     // =============================================================
     @FXML
     public void showInventory() {
@@ -107,6 +112,7 @@ public class AgentController {
             while (rs.next()) data.add(mapLand(rs));
         } catch (Exception e) { e.printStackTrace(); }
         table.setItems(data);
+        
         layout.getChildren().addAll(title, table);
         contentArea.getChildren().add(layout);
     }
@@ -143,7 +149,7 @@ public class AgentController {
     }
 
     // =============================================================
-    // 3. BUYERS
+    // 4. BUYERS (My Buyers)
     // =============================================================
     @FXML
     public void showBuyers() {
@@ -197,7 +203,7 @@ public class AgentController {
     }
 
     // =============================================================
-    // 4. VISITS (FIXED CONSTRUCTOR HERE)
+    // 5. VISITS (My Visits)
     // =============================================================
     @FXML
     public void showVisits() {
@@ -217,15 +223,8 @@ public class AgentController {
             stmt.setInt(1, getAgentId());
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                // FIXED: Updated to match 6-arg constructor: (id, buyerName, agentName, landLocation, date, status)
-                data.add(new Visit(
-                    rs.getInt("visit_id"), 
-                    rs.getString("name"), 
-                    "Me", // Placeholder for Agent Name since this is the Agent view
-                    rs.getString("location"), 
-                    rs.getString("fmt_date"), 
-                    rs.getString("status")
-                ));
+                // Pass "Me" as agent name since this is the agent's own view
+                data.add(new Visit(rs.getInt("visit_id"), rs.getString("name"), "Me", rs.getString("location"), rs.getString("fmt_date"), rs.getString("status")));
             }
         } catch (Exception e) { e.printStackTrace(); }
         table.setItems(data);
@@ -237,16 +236,20 @@ public class AgentController {
     public void showScheduleVisit() {
         VBox layout = new VBox(15); layout.setStyle("-fx-background-color: white; -fx-padding: 30;"); layout.setMaxWidth(500);
         Label title = new Label("Schedule Visit"); title.setStyle("-fx-font-size: 20px;");
+
         ComboBox<Buyer> buyerBox = new ComboBox<>(); buyerBox.setPromptText("Select Your Buyer"); buyerBox.setPrefWidth(300);
         loadMyBuyers(buyerBox);
-        ComboBox<Land> landBox = new ComboBox<>(); landBox.setPromptText("Select Land"); landBox.setPrefWidth(300);
-        loadMyAvailableLands(landBox);
+
+        ComboBox<Land> landBox = new ComboBox<>(); landBox.setPromptText("Select Your Land"); landBox.setPrefWidth(300);
+        loadMyAvailableLands(landBox); // Only loads agent's lands
+
         HBox dateTimeBox = new HBox(10);
         DatePicker datePicker = new DatePicker();
         ComboBox<String> timeBox = new ComboBox<>();
-        timeBox.getItems().addAll("08:00", "09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00");
         timeBox.setPromptText("Time");
+        timeBox.getItems().addAll("08:00", "09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00");
         dateTimeBox.getChildren().addAll(datePicker, timeBox);
+
         Button btn = new Button("Schedule"); btn.setStyle("-fx-background-color: #8E44AD; -fx-text-fill: white;");
         Label msg = new Label();
         
@@ -271,19 +274,23 @@ public class AgentController {
     }
 
     // =============================================================
-    // 5. SALES (FIXED CONSTRUCTOR HERE)
+    // 6. SALES MANAGEMENT (Detailed)
     // =============================================================
     @FXML
     public void showSales() {
         contentArea.getChildren().clear();
         VBox layout = new VBox(15);
-        Label title = new Label("My Sales History");
+        Label title = new Label("My Sales & Payments");
         title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
-        TableView<Sale> table = createSaleTable();
+        TableView<Sale> table = createSaleTable(); 
         ObservableList<Sale> data = FXCollections.observableArrayList();
-        String sql = "SELECT s.sale_id, l.location, b.name, s.final_price, s.sale_date " +
-                     "FROM sales s JOIN lands l ON s.land_id = l.land_id JOIN buyers b ON s.buyer_id = b.buyer_id " +
+        
+        // Fetch detailed financial info
+        String sql = "SELECT s.sale_id, l.location, b.name, s.total_amount, s.paid_amount, s.remaining_balance, s.payment_method, s.sale_date " +
+                     "FROM sales s " +
+                     "JOIN lands l ON s.land_id = l.land_id " +
+                     "JOIN buyers b ON s.buyer_id = b.buyer_id " +
                      "WHERE s.agent_id = ?";
 
         try (Connection conn = DBConnection.getConnection();
@@ -291,13 +298,15 @@ public class AgentController {
             stmt.setInt(1, getAgentId());
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                // FIXED: Updated to match 6-arg constructor: (id, location, buyerName, agentName, price, date)
                 data.add(new Sale(
                     rs.getInt("sale_id"), 
                     rs.getString("location"), 
                     rs.getString("name"), 
-                    "Me", // Placeholder for Agent Name since this is the Agent view
-                    rs.getDouble("final_price"), 
+                    "Me", // Placeholder for agent name
+                    rs.getDouble("total_amount"),
+                    rs.getDouble("paid_amount"),
+                    rs.getDouble("remaining_balance"),
+                    rs.getString("payment_method"),
                     rs.getString("sale_date")
                 ));
             }
@@ -309,40 +318,91 @@ public class AgentController {
 
     @FXML
     public void showRecordSale() {
-        VBox layout = new VBox(15); layout.setStyle("-fx-background-color: white; -fx-padding: 30;"); layout.setMaxWidth(500);
-        Label title = new Label("Record Sale"); title.setStyle("-fx-font-size: 20px;");
+        VBox layout = new VBox(15); layout.setStyle("-fx-background-color: white; -fx-padding: 30;"); layout.setMaxWidth(600);
+        Label title = new Label("Record Sale"); title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
+        
         ComboBox<Land> landBox = new ComboBox<>(); landBox.setPromptText("Select Land"); loadMyAvailableLands(landBox);
-        ComboBox<Buyer> buyerBox = new ComboBox<>(); buyerBox.setPromptText("Select Your Buyer"); loadMyBuyers(buyerBox);
-        TextField priceField = new TextField(); priceField.setPromptText("Final Price");
+        ComboBox<Buyer> buyerBox = new ComboBox<>(); buyerBox.setPromptText("Select Buyer"); loadMyBuyers(buyerBox);
+        
+        TextField totalPriceField = new TextField(); totalPriceField.setPromptText("Total Sale Price (FCFA)");
+        
+        HBox typeBoxContainer = new HBox(10);
+        ComboBox<String> typeBox = new ComboBox<>(FXCollections.observableArrayList("Full Payment", "Installment")); typeBox.setPromptText("Type");
+        ComboBox<String> methodBox = new ComboBox<>(FXCollections.observableArrayList("Cash", "Visa Card", "Mobile Money")); methodBox.setPromptText("Method");
+        typeBoxContainer.getChildren().addAll(typeBox, methodBox);
+
+        TextField paidNowField = new TextField(); paidNowField.setPromptText("Amount Paid Now");
+        Label balanceLabel = new Label("Balance: 0 FCFA"); balanceLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #E74C3C;");
+
+        // Logic for auto-filling and balance calc
+        typeBox.setOnAction(e -> {
+            if ("Full Payment".equals(typeBox.getValue()) && !totalPriceField.getText().isEmpty()) {
+                paidNowField.setText(totalPriceField.getText()); paidNowField.setDisable(true);
+                balanceLabel.setText("Balance: 0 FCFA");
+            } else {
+                paidNowField.setDisable(false); paidNowField.clear();
+            }
+        });
+        paidNowField.setOnKeyReleased(e -> {
+            try {
+                double t = Double.parseDouble(totalPriceField.getText());
+                double p = Double.parseDouble(paidNowField.getText());
+                balanceLabel.setText("Balance: " + currencyFormatter.format(t - p) + " FCFA");
+            } catch(Exception ex) { balanceLabel.setText("Invalid"); }
+        });
+
         DatePicker datePicker = new DatePicker(LocalDate.now());
-        Button btn = new Button("Confirm"); btn.setStyle("-fx-background-color: #D35400; -fx-text-fill: white;");
+        Button btn = new Button("Confirm Sale"); btn.setStyle("-fx-background-color: #D35400; -fx-text-fill: white;");
         Label msg = new Label();
 
         btn.setOnAction(e -> {
+            if(landBox.getValue() == null || buyerBox.getValue() == null || methodBox.getValue() == null) {
+                msg.setText("Fill all fields!"); return;
+            }
             try (Connection conn = DBConnection.getConnection()) {
                 conn.setAutoCommit(false);
-                String sqlSale = "INSERT INTO sales (land_id, buyer_id, agent_id, final_price, sale_date, payment_type) VALUES (?, ?, ?, ?, ?, 'FULL')";
-                PreparedStatement stmtSale = conn.prepareStatement(sqlSale);
+                double total = Double.parseDouble(totalPriceField.getText());
+                double paid = Double.parseDouble(paidNowField.getText());
+                String pType = typeBox.getValue().equals("Full Payment") ? "FULL" : "INSTALLMENT";
+
+                // Insert Sale
+                String sqlSale = "INSERT INTO sales (land_id, buyer_id, agent_id, total_amount, paid_amount, remaining_balance, payment_type, payment_method, sale_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                PreparedStatement stmtSale = conn.prepareStatement(sqlSale, Statement.RETURN_GENERATED_KEYS);
                 stmtSale.setInt(1, landBox.getValue().getId());
                 stmtSale.setInt(2, buyerBox.getValue().getId());
                 stmtSale.setInt(3, getAgentId());
-                stmtSale.setDouble(4, Double.parseDouble(priceField.getText()));
-                stmtSale.setDate(5, java.sql.Date.valueOf(datePicker.getValue()));
+                stmtSale.setDouble(4, total);
+                stmtSale.setDouble(5, paid);
+                stmtSale.setDouble(6, total - paid);
+                stmtSale.setString(7, pType);
+                stmtSale.setString(8, methodBox.getValue());
+                stmtSale.setDate(9, java.sql.Date.valueOf(datePicker.getValue()));
                 stmtSale.executeUpdate();
+                
+                // Get Sale ID and Insert Payment History
+                ResultSet rsK = stmtSale.getGeneratedKeys();
+                int sId = 0; if(rsK.next()) sId = rsK.getInt(1);
+                PreparedStatement stmtPay = conn.prepareStatement("INSERT INTO payments (sale_id, amount, method, payment_date) VALUES (?, ?, ?, ?)");
+                stmtPay.setInt(1, sId); stmtPay.setDouble(2, paid); stmtPay.setString(3, methodBox.getValue()); stmtPay.setDate(4, java.sql.Date.valueOf(datePicker.getValue()));
+                stmtPay.executeUpdate();
+
+                // Update Land
                 PreparedStatement stmtLand = conn.prepareStatement("UPDATE lands SET status='SOLD' WHERE land_id=?");
                 stmtLand.setInt(1, landBox.getValue().getId());
                 stmtLand.executeUpdate();
+
                 conn.commit();
                 msg.setText("Sale Recorded!"); msg.setStyle("-fx-text-fill: green;");
                 loadMyAvailableLands(landBox);
             } catch (Exception ex) { msg.setText("Error: " + ex.getMessage()); }
         });
-        layout.getChildren().addAll(title, landBox, buyerBox, priceField, datePicker, msg, btn);
+        
+        layout.getChildren().addAll(title, landBox, buyerBox, totalPriceField, typeBoxContainer, paidNowField, balanceLabel, datePicker, msg, btn);
         contentArea.getChildren().clear(); contentArea.getChildren().add(layout);
     }
 
     // =============================================================
-    // 6. SMART RECOMMENDER
+    // 7. SMART RECOMMENDER (Filtered by Agent's Lands)
     // =============================================================
     @FXML
     public void showSmartRecommender() {
@@ -359,7 +419,8 @@ public class AgentController {
             Buyer selected = buyerBox.getValue();
             if(selected == null) return;
             results.getChildren().clear();
-            // Filter by agent_id to only show lands belonging to this agent
+            
+            // Only search Agent's OWN available lands
             String sql = "SELECT * FROM lands WHERE status='AVAILABLE' AND agent_id = ? AND price <= ? ORDER BY CASE WHEN location LIKE ? THEN 1 ELSE 2 END, price ASC";
             try (Connection conn = DBConnection.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, getAgentId());
@@ -387,7 +448,7 @@ public class AgentController {
     }
 
     // =============================================================
-    // 7. TABLES & HELPERS
+    // 8. HELPERS & TABLES
     // =============================================================
     private TableView<Land> createLandTable() {
         TableView<Land> table = new TableView<>();
@@ -426,11 +487,14 @@ public class AgentController {
     private TableView<Sale> createSaleTable() {
         TableView<Sale> table = new TableView<>();
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        TableColumn<Sale, String> c1 = new TableColumn<>("Land"); c1.setCellValueFactory(new PropertyValueFactory<>("landLocation"));
-        TableColumn<Sale, String> c2 = new TableColumn<>("Buyer"); c2.setCellValueFactory(new PropertyValueFactory<>("buyerName"));
-        TableColumn<Sale, Double> c3 = new TableColumn<>("Price"); c3.setCellValueFactory(new PropertyValueFactory<>("price"));
-        TableColumn<Sale, String> c4 = new TableColumn<>("Date"); c4.setCellValueFactory(new PropertyValueFactory<>("date"));
-        table.getColumns().addAll(c1, c2, c3, c4);
+        TableColumn<Sale, String> c1 = new TableColumn<>("Date"); c1.setCellValueFactory(new PropertyValueFactory<>("date"));
+        TableColumn<Sale, String> c2 = new TableColumn<>("Land"); c2.setCellValueFactory(new PropertyValueFactory<>("landLocation"));
+        TableColumn<Sale, String> c3 = new TableColumn<>("Buyer"); c3.setCellValueFactory(new PropertyValueFactory<>("buyerName"));
+        TableColumn<Sale, Double> c4 = new TableColumn<>("Total"); c4.setCellValueFactory(new PropertyValueFactory<>("totalAmount"));
+        TableColumn<Sale, Double> c5 = new TableColumn<>("Paid"); c5.setCellValueFactory(new PropertyValueFactory<>("paidAmount"));
+        TableColumn<Sale, Double> c6 = new TableColumn<>("Balance"); c6.setCellValueFactory(new PropertyValueFactory<>("remainingBalance"));
+        TableColumn<Sale, String> c7 = new TableColumn<>("Method"); c7.setCellValueFactory(new PropertyValueFactory<>("paymentMethod"));
+        table.getColumns().addAll(c1, c2, c3, c4, c5, c6, c7);
         return table;
     }
 
