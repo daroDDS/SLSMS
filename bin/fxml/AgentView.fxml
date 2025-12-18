@@ -21,12 +21,13 @@
             <Button text="Inventory (Lands)" styleClass="button-menu" maxWidth="Infinity" onAction="#showInventory"/>
             <Button text="Buyers" styleClass="button-menu" maxWidth="Infinity" onAction="#showBuyers"/>
             <Button text="Visits Calendar" styleClass="button-menu" maxWidth="Infinity" onAction="#showVisits"/>
-            <Button text="My Sales" styleClass="button-menu" maxWidth="Infinity" onAction="#showSales"/>
+            <Button text="Sales History" styleClass="button-menu" maxWidth="Infinity" onAction="#showSales"/>
 
             <Label text="ACTIONS" style="-fx-text-fill: #7F8C8D; -fx-padding: 10 0 5 15; -fx-font-size: 11px;"/>
             <Button text="+ Add Land" styleClass="button-menu" maxWidth="Infinity" onAction="#showAddLand"/>
             <Button text="+ Register Buyer" styleClass="button-menu" maxWidth="Infinity" onAction="#showRegisterBuyer"/>
             <Button text="+ Schedule Visit" styleClass="button-menu" maxWidth="Infinity" onAction="#showScheduleVisit"/>
+            <Button text="+ Record Sale" styleClass="button-menu" maxWidth="Infinity" onAction="#showRecordSale"/>
             
             <Region VBox.vgrow="ALWAYS"/>
             <Button text="Logout" styleClass="button-menu" maxWidth="Infinity" onAction="#logout"/>
@@ -34,7 +35,6 @@
     </left>
 
     <center>
-        <!-- ScrollPane ensures tables don't get cut off -->
         <ScrollPane fitToWidth="true" fitToHeight="true" style="-fx-background-color: transparent;">
             <StackPane fx:id="contentArea" style="-fx-padding: 30; -fx-background-color: #ECF0F1;">
             </StackPane>
