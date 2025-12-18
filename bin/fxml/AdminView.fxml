@@ -1,19 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
 <BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" 
             fx:controller="com.slsms.controller.AdminController"
             stylesheets="@../css/style.css">
+    
+    <!-- LEFT SIDEBAR -->
     <left>
-        <VBox styleClass="sidebar" prefWidth="220" spacing="10">
-            <Label text="ADMIN PANEL" styleClass="sidebar-label"/>
-            <Button text="Global Analytics" styleClass="button-menu" maxWidth="Infinity"/>
-            <Button text="Manage Agents" styleClass="button-menu" maxWidth="Infinity"/>
-            <Button text="System Settings" styleClass="button-menu" maxWidth="Infinity"/>
-            <Separator/>
-            <Button text="Logout" styleClass="button-menu" maxWidth="Infinity" onAction="#logout"/>
+        <VBox styleClass="sidebar" prefWidth="240">
+            <VBox styleClass="sidebar-header">
+                <Label text="SLSMS ADMIN" styleClass="sidebar-label"/>
+            </VBox>
+            
+            <Button text="📊  Dashboard" styleClass="button-menu" maxWidth="Infinity" onAction="#showDashboard"/>
+            <Button text="👤  Manage Agents" styleClass="button-menu" maxWidth="Infinity"/>
+            <Button text="⚙  Settings" styleClass="button-menu" maxWidth="Infinity"/>
+            
+            <Region VBox.vgrow="ALWAYS"/> <!-- Spacer -->
+            <Separator opacity="0.1"/>
+            <Button text="🚪  Logout" styleClass="button-menu" maxWidth="Infinity" onAction="#logout"/>
         </VBox>
     </left>
+
+    <!-- CENTER CONTENT -->
     <center>
-        <StackPane>
-            <Label text="Welcome Admin" style="-fx-font-size: 24px;"/>
-        </StackPane>
+        <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;">
+            <StackPane fx:id="contentArea" style="-fx-padding: 30;">
+                <!-- Default Content Loaded via Controller -->
+            </StackPane>
+        </ScrollPane>
     </center>
 </BorderPane>

@@ -1,12 +1,17 @@
-/* General Colors */
+/* resources/css/style.css */
 .root {
     -fx-font-family: 'Segoe UI', sans-serif;
-    -fx-background-color: #ECF0F1;
+    -fx-background-color: #F4F6F7;
 }
 
-/* Sidebar Styling */
+/* Sidebar */
 .sidebar {
     -fx-background-color: #2C3E50;
+    -fx-padding: 0;
+}
+
+.sidebar-header {
+    -fx-background-color: #1A252F;
     -fx-padding: 20;
 }
 
@@ -14,29 +19,53 @@
     -fx-text-fill: white;
     -fx-font-size: 18px;
     -fx-font-weight: bold;
-    -fx-padding: 0 0 20 0;
 }
 
-/* Modern Buttons */
+/* Sidebar Buttons */
 .button-menu {
     -fx-background-color: transparent;
     -fx-text-fill: #BDC3C7;
     -fx-alignment: BASELINE_LEFT;
     -fx-font-size: 14px;
-    -fx-cursor: hand;
-    -fx-padding: 10 15;
+    -fx-padding: 15 20;
+    -fx-border-width: 0 0 0 4;
+    -fx-border-color: transparent;
 }
 
 .button-menu:hover {
     -fx-background-color: #34495E;
     -fx-text-fill: white;
+    -fx-border-color: #3498DB;
 }
 
+/* Cards (Content Areas) */
+.content-card {
+    -fx-background-color: white;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 1);
+    -fx-background-radius: 8;
+    -fx-padding: 20;
+}
+
+/* Forms */
+.text-field, .combo-box, .date-picker {
+    -fx-background-radius: 4;
+    -fx-border-color: #BDC3C7;
+    -fx-border-radius: 4;
+    -fx-padding: 8;
+    -fx-background-color: white;
+}
+
+.text-field:focused {
+    -fx-border-color: #3498DB;
+}
+
+/* Buttons */
 .button-primary {
     -fx-background-color: #2980B9;
     -fx-text-fill: white;
-    -fx-background-radius: 5;
+    -fx-background-radius: 4;
     -fx-font-weight: bold;
+    -fx-padding: 10 20;
     -fx-cursor: hand;
 }
 
@@ -44,18 +73,28 @@
     -fx-background-color: #3498DB;
 }
 
-/* Text Fields */
-.text-field {
-    -fx-background-radius: 5;
-    -fx-border-color: #BDC3C7;
-    -fx-border-radius: 5;
-    -fx-padding: 8;
+.button-danger {
+    -fx-background-color: #E74C3C;
+    -fx-text-fill: white;
+    -fx-background-radius: 4;
+    -fx-cursor: hand;
 }
 
-/* Login Box */
-.login-card {
-    -fx-background-color: white;
-    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0);
-    -fx-background-radius: 10;
-    -fx-padding: 40;
+/* Dashboard Stats Cards */
+.stat-card {
+    -fx-background-color: linear-gradient(to bottom right, #3498DB, #2980B9);
+    -fx-background-radius: 8;
+    -fx-padding: 20;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 1);
+}
+
+.stat-label {
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+}
+
+.stat-value {
+    -fx-text-fill: white;
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
 }
