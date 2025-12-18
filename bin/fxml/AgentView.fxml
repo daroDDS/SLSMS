@@ -13,21 +13,22 @@
                 <Label text="AGENT PORTAL" styleClass="sidebar-label" style="-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;"/>
             </VBox>
             
-            <Label text="MAIN" style="-fx-text-fill: #7F8C8D; -fx-padding: 10 0 5 15; -fx-font-size: 11px;"/>
+            <Label text="ACCOUNT" style="-fx-text-fill: #7F8C8D; -fx-padding: 10 0 5 15; -fx-font-size: 11px;"/>
+            <Button text="My Profile" styleClass="button-menu" maxWidth="Infinity" onAction="#showProfile"/>
             <Button text="Dashboard" styleClass="button-menu" maxWidth="Infinity" onAction="#showDashboard"/>
-            <Button text="Smart Recommender" styleClass="button-menu" maxWidth="Infinity" onAction="#showSmartRecommender"/>
 
             <Label text="MANAGEMENT" style="-fx-text-fill: #7F8C8D; -fx-padding: 10 0 5 15; -fx-font-size: 11px;"/>
-            <Button text="Inventory (Lands)" styleClass="button-menu" maxWidth="Infinity" onAction="#showInventory"/>
-            <Button text="Buyers" styleClass="button-menu" maxWidth="Infinity" onAction="#showBuyers"/>
-            <Button text="Visits Calendar" styleClass="button-menu" maxWidth="Infinity" onAction="#showVisits"/>
-            <Button text="Sales History" styleClass="button-menu" maxWidth="Infinity" onAction="#showSales"/>
+            <Button text="My Lands" styleClass="button-menu" maxWidth="Infinity" onAction="#showInventory"/>
+            <Button text="My Buyers" styleClass="button-menu" maxWidth="Infinity" onAction="#showBuyers"/>
+            <Button text="My Visits" styleClass="button-menu" maxWidth="Infinity" onAction="#showVisits"/>
+            <Button text="My Sales" styleClass="button-menu" maxWidth="Infinity" onAction="#showSales"/>
 
             <Label text="ACTIONS" style="-fx-text-fill: #7F8C8D; -fx-padding: 10 0 5 15; -fx-font-size: 11px;"/>
             <Button text="+ Add Land" styleClass="button-menu" maxWidth="Infinity" onAction="#showAddLand"/>
             <Button text="+ Register Buyer" styleClass="button-menu" maxWidth="Infinity" onAction="#showRegisterBuyer"/>
             <Button text="+ Schedule Visit" styleClass="button-menu" maxWidth="Infinity" onAction="#showScheduleVisit"/>
             <Button text="+ Record Sale" styleClass="button-menu" maxWidth="Infinity" onAction="#showRecordSale"/>
+            <Button text="Smart Recommender" styleClass="button-menu" maxWidth="Infinity" onAction="#showSmartRecommender"/>
             
             <Region VBox.vgrow="ALWAYS"/>
             <Button text="Logout" styleClass="button-menu" maxWidth="Infinity" onAction="#logout"/>

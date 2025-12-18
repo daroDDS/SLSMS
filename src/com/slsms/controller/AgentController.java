@@ -5,10 +5,12 @@ import com.slsms.model.Land;
 import com.slsms.model.Sale;
 import com.slsms.model.Visit;
 import com.slsms.util.DBConnection;
+import com.slsms.util.UserSession;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -25,61 +27,89 @@ public class AgentController {
     @FXML private StackPane contentArea;
     private final NumberFormat currencyFormatter = NumberFormat.getInstance(Locale.FRENCH);
 
+    // --- Helper to get Current Agent ID ---
+    private int getAgentId() {
+        if (UserSession.getInstance() == null) return 0;
+        return UserSession.getInstance().getUserId();
+    }
+
     @FXML
     public void initialize() {
         showDashboard();
     }
 
-    // --- DASHBOARD ---
+    // =============================================================
+    // 1. PROFILE & DASHBOARD
+    // =============================================================
+    @FXML
+    public void showProfile() {
+        contentArea.getChildren().clear();
+        UserSession user = UserSession.getInstance();
+
+        VBox card = new VBox(20);
+        card.setStyle("-fx-background-color: white; -fx-padding: 40; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 0);");
+        card.setMaxWidth(400);
+        card.setAlignment(Pos.CENTER);
+
+        String initial = (user.getFullName() != null && !user.getFullName().isEmpty()) ? String.valueOf(user.getFullName().charAt(0)) : "U";
+        Label avatar = new Label(initial);
+        avatar.setStyle("-fx-background-color: #2C3E50; -fx-text-fill: white; -fx-font-size: 40px; -fx-font-weight: bold; -fx-padding: 20 35; -fx-background-radius: 100;");
+
+        Label name = new Label(user.getFullName());
+        name.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2C3E50;");
+
+        VBox details = new VBox(10);
+        details.setAlignment(Pos.CENTER_LEFT);
+        details.setMaxWidth(300);
+        details.getChildren().addAll(
+            new Label("Username: " + user.getUsername()),
+            new Label("Role: " + user.getRole()),
+            new Label("Agent ID: #" + user.getUserId())
+        );
+
+        card.getChildren().addAll(avatar, name, new Separator(), details);
+        contentArea.getChildren().add(card);
+    }
+
     @FXML
     public void showDashboard() {
         contentArea.getChildren().clear();
         VBox layout = new VBox(20);
-        Label title = new Label("Dashboard Overview");
+        Label title = new Label("My Dashboard");
         title.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #2C3E50;");
 
+        int id = getAgentId();
         HBox stats = new HBox(20);
         stats.getChildren().addAll(
-            createStatCard("Inventory", getCount("SELECT COUNT(*) FROM lands WHERE status='AVAILABLE'"), "#3498DB"),
-            createStatCard("Buyers", getCount("SELECT COUNT(*) FROM buyers"), "#E67E22"),
-            createStatCard("Sales", getCount("SELECT COUNT(*) FROM sales"), "#27AE60"),
-            createStatCard("Visits", getCount("SELECT COUNT(*) FROM visits WHERE status='PLANNED'"), "#9B59B6")
+            createStatCard("My Lands", getCount("SELECT COUNT(*) FROM lands WHERE agent_id=" + id), "#3498DB"),
+            createStatCard("My Buyers", getCount("SELECT COUNT(*) FROM buyers WHERE agent_id=" + id), "#E67E22"),
+            createStatCard("My Sales", getCount("SELECT COUNT(*) FROM sales WHERE agent_id=" + id), "#27AE60"),
+            createStatCard("Planned Visits", getCount("SELECT COUNT(*) FROM visits WHERE agent_id=" + id + " AND status='PLANNED'"), "#9B59B6")
         );
         layout.getChildren().addAll(title, stats);
         contentArea.getChildren().add(layout);
     }
 
-    // --- LAND INVENTORY ---
+    // =============================================================
+    // 2. INVENTORY (My Lands)
+    // =============================================================
     @FXML
     public void showInventory() {
         contentArea.getChildren().clear();
         VBox layout = new VBox(15);
-        Label title = new Label("Land Inventory");
+        Label title = new Label("My Land Inventory");
         title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
-        TableView<Land> table = new TableView<>();
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        
-        TableColumn<Land, String> colLoc = new TableColumn<>("Location");
-        colLoc.setCellValueFactory(new PropertyValueFactory<>("location"));
-        TableColumn<Land, Double> colArea = new TableColumn<>("Area (m²)");
-        colArea.setCellValueFactory(new PropertyValueFactory<>("area"));
-        TableColumn<Land, Double> colPrice = new TableColumn<>("Price (FCFA)");
-        colPrice.setCellValueFactory(new PropertyValueFactory<>("price"));
-        TableColumn<Land, String> colStatus = new TableColumn<>("Status");
-        colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
-
-        table.getColumns().addAll(colLoc, colArea, colPrice, colStatus);
-
+        TableView<Land> table = createLandTable();
         ObservableList<Land> data = FXCollections.observableArrayList();
-        try (Connection conn = DBConnection.getConnection();
-             ResultSet rs = conn.createStatement().executeQuery("SELECT * FROM lands")) {
-            while (rs.next()) {
-                data.add(new Land(rs.getInt("land_id"), rs.getString("location"), rs.getDouble("area_sqm"), rs.getDouble("price"), rs.getString("category"), rs.getString("status")));
-            }
+        try (Connection conn = DBConnection.getConnection()) {
+            PreparedStatement stmt = conn.prepareStatement("SELECT * FROM lands WHERE agent_id = ?");
+            stmt.setInt(1, getAgentId());
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) data.add(mapLand(rs));
         } catch (Exception e) { e.printStackTrace(); }
         table.setItems(data);
-
+        
         layout.getChildren().addAll(title, table);
         contentArea.getChildren().add(layout);
     }
@@ -87,424 +117,368 @@ public class AgentController {
     @FXML
     public void showAddLand() {
         VBox layout = new VBox(15);
-        layout.setStyle("-fx-background-color: white; -fx-padding: 30; -fx-background-radius: 5;");
-        layout.setMaxWidth(500);
-
-        Label title = new Label("Add New Land");
-        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
-
+        layout.setStyle("-fx-background-color: white; -fx-padding: 30;"); layout.setMaxWidth(500);
+        Label title = new Label("Add Land"); title.setStyle("-fx-font-size: 20px;");
+        
         TextField loc = new TextField(); loc.setPromptText("Location");
         TextField area = new TextField(); area.setPromptText("Area (sqm)");
         TextField price = new TextField(); price.setPromptText("Price (FCFA)");
         ComboBox<String> cat = new ComboBox<>(FXCollections.observableArrayList("Residential", "Commercial", "Agricultural"));
         cat.setPromptText("Category");
-
-        Button btn = new Button("Save Land");
-        btn.setStyle("-fx-background-color: #2980B9; -fx-text-fill: white;");
+        Button btn = new Button("Save"); btn.setStyle("-fx-background-color: #2980B9; -fx-text-fill: white;");
         Label msg = new Label();
 
         btn.setOnAction(e -> {
             try (Connection conn = DBConnection.getConnection()) {
-                String sql = "INSERT INTO lands (location, area_sqm, price, category, status) VALUES (?, ?, ?, ?, 'AVAILABLE')";
+                String sql = "INSERT INTO lands (location, area_sqm, price, category, status, agent_id) VALUES (?, ?, ?, ?, 'AVAILABLE', ?)";
                 PreparedStatement stmt = conn.prepareStatement(sql);
                 stmt.setString(1, loc.getText());
                 stmt.setDouble(2, Double.parseDouble(area.getText()));
                 stmt.setDouble(3, Double.parseDouble(price.getText()));
                 stmt.setString(4, cat.getValue());
+                stmt.setInt(5, getAgentId());
                 stmt.executeUpdate();
-                msg.setText("Land added!");
-                msg.setStyle("-fx-text-fill: green;");
-                loc.clear(); area.clear(); price.clear();
+                msg.setText("Land Added!"); msg.setStyle("-fx-text-fill: green;");
             } catch (Exception ex) { msg.setText("Error: " + ex.getMessage()); }
         });
 
         layout.getChildren().addAll(title, loc, area, price, cat, msg, btn);
-        contentArea.getChildren().clear();
-        contentArea.getChildren().add(layout);
+        contentArea.getChildren().clear(); contentArea.getChildren().add(layout);
     }
 
-    // --- BUYERS ---
+    // =============================================================
+    // 3. BUYERS (My Buyers)
+    // =============================================================
     @FXML
     public void showBuyers() {
         contentArea.getChildren().clear();
         VBox layout = new VBox(15);
-        Label title = new Label("Registered Buyers");
+        Label title = new Label("My Registered Buyers");
         title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
-        TableView<Buyer> table = new TableView<>();
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        
-        TableColumn<Buyer, String> colName = new TableColumn<>("Name");
-        colName.setCellValueFactory(new PropertyValueFactory<>("name"));
-        TableColumn<Buyer, String> colPhone = new TableColumn<>("Phone");
-        colPhone.setCellValueFactory(new PropertyValueFactory<>("phone"));
-        TableColumn<Buyer, Double> colBudget = new TableColumn<>("Budget");
-        colBudget.setCellValueFactory(new PropertyValueFactory<>("budget"));
-        TableColumn<Buyer, String> colLoc = new TableColumn<>("Pref. Location");
-        colLoc.setCellValueFactory(new PropertyValueFactory<>("location"));
-
-        table.getColumns().addAll(colName, colPhone, colBudget, colLoc);
-        
+        TableView<Buyer> table = createBuyerTable(); // <--- Uses helper below
         ObservableList<Buyer> data = FXCollections.observableArrayList();
-        try (Connection conn = DBConnection.getConnection();
-             ResultSet rs = conn.createStatement().executeQuery("SELECT * FROM buyers")) {
-            while (rs.next()) data.add(new Buyer(rs.getInt("buyer_id"), rs.getString("name"), rs.getString("phone"), rs.getDouble("budget_max"), rs.getString("preferred_location")));
+        try (Connection conn = DBConnection.getConnection()) {
+            PreparedStatement stmt = conn.prepareStatement("SELECT * FROM buyers WHERE agent_id = ?");
+            stmt.setInt(1, getAgentId());
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) data.add(mapBuyer(rs));
         } catch (Exception e) { e.printStackTrace(); }
         table.setItems(data);
+
         layout.getChildren().addAll(title, table);
         contentArea.getChildren().add(layout);
     }
 
     @FXML
     public void showRegisterBuyer() {
-        VBox layout = new VBox(15);
-        layout.setStyle("-fx-background-color: white; -fx-padding: 30; -fx-background-radius: 5;");
-        layout.setMaxWidth(500);
-        Label title = new Label("Register Buyer");
-        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
-
-        TextField name = new TextField(); name.setPromptText("Full Name");
+        VBox layout = new VBox(15); layout.setStyle("-fx-background-color: white; -fx-padding: 30;"); layout.setMaxWidth(500);
+        Label title = new Label("Register Buyer"); title.setStyle("-fx-font-size: 20px;");
+        
+        TextField name = new TextField(); name.setPromptText("Name");
         TextField phone = new TextField(); phone.setPromptText("Phone");
-        TextField budget = new TextField(); budget.setPromptText("Max Budget");
-        TextField loc = new TextField(); loc.setPromptText("Preferred Location");
+        TextField budget = new TextField(); budget.setPromptText("Budget");
+        TextField loc = new TextField(); loc.setPromptText("Pref Location");
         TextField size = new TextField(); size.setPromptText("Min Size");
-
-        Button btn = new Button("Register");
-        btn.setStyle("-fx-background-color: #27AE60; -fx-text-fill: white;");
+        Button btn = new Button("Save"); btn.setStyle("-fx-background-color: #27AE60; -fx-text-fill: white;");
         Label msg = new Label();
 
         btn.setOnAction(e -> {
             try (Connection conn = DBConnection.getConnection()) {
-                String sql = "INSERT INTO buyers (name, phone, budget_max, preferred_location, min_size_sqm) VALUES (?, ?, ?, ?, ?)";
+                String sql = "INSERT INTO buyers (name, phone, budget_max, preferred_location, min_size_sqm, agent_id) VALUES (?, ?, ?, ?, ?, ?)";
                 PreparedStatement stmt = conn.prepareStatement(sql);
                 stmt.setString(1, name.getText());
                 stmt.setString(2, phone.getText());
                 stmt.setDouble(3, Double.parseDouble(budget.getText()));
                 stmt.setString(4, loc.getText());
                 stmt.setDouble(5, Double.parseDouble(size.getText()));
+                stmt.setInt(6, getAgentId());
                 stmt.executeUpdate();
-                msg.setText("Buyer Saved!");
-                msg.setStyle("-fx-text-fill: green;");
-                name.clear(); phone.clear(); budget.clear();
+                msg.setText("Buyer Registered!"); msg.setStyle("-fx-text-fill: green;");
             } catch (Exception ex) { msg.setText("Error: " + ex.getMessage()); }
         });
+
         layout.getChildren().addAll(title, name, phone, budget, loc, size, msg, btn);
-        contentArea.getChildren().clear();
-        contentArea.getChildren().add(layout);
+        contentArea.getChildren().clear(); contentArea.getChildren().add(layout);
     }
 
-    // --- VISITS (WITH TIME) ---
+    // =============================================================
+    // 4. VISITS (My Visits)
+    // =============================================================
     @FXML
     public void showVisits() {
         contentArea.getChildren().clear();
         VBox layout = new VBox(15);
-        Label title = new Label("Visit Calendar");
+        Label title = new Label("My Visits");
         title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
-        TableView<Visit> table = new TableView<>();
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-        TableColumn<Visit, String> colDate = new TableColumn<>("Date & Time");
-        colDate.setCellValueFactory(new PropertyValueFactory<>("date"));
-        TableColumn<Visit, String> colBuyer = new TableColumn<>("Buyer");
-        colBuyer.setCellValueFactory(new PropertyValueFactory<>("buyerName"));
-        TableColumn<Visit, String> colLand = new TableColumn<>("Land");
-        colLand.setCellValueFactory(new PropertyValueFactory<>("landLocation"));
-        TableColumn<Visit, String> colStatus = new TableColumn<>("Status");
-        colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
-
-        table.getColumns().addAll(colDate, colBuyer, colLand, colStatus);
-
+        TableView<Visit> table = createVisitTable(); // <--- Uses helper below
         ObservableList<Visit> data = FXCollections.observableArrayList();
-        // SQL now formats date and time
         String sql = "SELECT v.visit_id, DATE_FORMAT(v.visit_date, '%Y-%m-%d %H:%i') as fmt_date, v.status, b.name, l.location " +
                      "FROM visits v JOIN buyers b ON v.buyer_id = b.buyer_id JOIN lands l ON v.land_id = l.land_id " +
-                     "ORDER BY v.visit_date DESC";
+                     "WHERE v.agent_id = ? ORDER BY v.visit_date DESC";
+
         try (Connection conn = DBConnection.getConnection();
-             ResultSet rs = conn.createStatement().executeQuery(sql)) {
-            while (rs.next()) {
-                data.add(new Visit(rs.getInt("visit_id"), rs.getString("name"), rs.getString("location"), rs.getString("fmt_date"), rs.getString("status")));
-            }
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, getAgentId());
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) data.add(new Visit(rs.getInt("visit_id"), rs.getString("name"), rs.getString("location"), rs.getString("fmt_date"), rs.getString("status")));
         } catch (Exception e) { e.printStackTrace(); }
         table.setItems(data);
+
         layout.getChildren().addAll(title, table);
         contentArea.getChildren().add(layout);
     }
 
     @FXML
     public void showScheduleVisit() {
-        VBox layout = new VBox(15);
-        layout.setStyle("-fx-background-color: white; -fx-padding: 30;");
-        layout.setMaxWidth(500);
+        VBox layout = new VBox(15); layout.setStyle("-fx-background-color: white; -fx-padding: 30;"); layout.setMaxWidth(500);
+        Label title = new Label("Schedule Visit"); title.setStyle("-fx-font-size: 20px;");
 
-        Label title = new Label("Schedule New Visit");
-        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+        ComboBox<Buyer> buyerBox = new ComboBox<>(); buyerBox.setPromptText("Select Your Buyer"); buyerBox.setPrefWidth(300);
+        loadMyBuyers(buyerBox);
 
-        ComboBox<Buyer> buyerBox = new ComboBox<>();
-        buyerBox.setPromptText("Select Buyer");
-        buyerBox.setPrefWidth(300);
-        loadBuyers(buyerBox);
-
-        ComboBox<Land> landBox = new ComboBox<>();
-        landBox.setPromptText("Select Land");
-        landBox.setPrefWidth(300);
-        loadLands(landBox);
+        ComboBox<Land> landBox = new ComboBox<>(); landBox.setPromptText("Select Land"); landBox.setPrefWidth(300);
+        loadAllLands(landBox);
 
         HBox dateTimeBox = new HBox(10);
         DatePicker datePicker = new DatePicker();
-        datePicker.setPromptText("Select Date");
-        
-        // Time Selection
         ComboBox<String> timeBox = new ComboBox<>();
+        timeBox.getItems().addAll("08:00", "09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00");
         timeBox.setPromptText("Time");
-        timeBox.getItems().addAll("08:00", "09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00", "18:00");
         dateTimeBox.getChildren().addAll(datePicker, timeBox);
 
-        Button btn = new Button("Schedule");
-        btn.setStyle("-fx-background-color: #8E44AD; -fx-text-fill: white;");
+        Button btn = new Button("Schedule"); btn.setStyle("-fx-background-color: #8E44AD; -fx-text-fill: white;");
         Label msg = new Label();
-
+        
         btn.setOnAction(e -> {
-            if (buyerBox.getValue() == null || landBox.getValue() == null || datePicker.getValue() == null || timeBox.getValue() == null) {
-                msg.setText("Please fill all fields!");
-                msg.setStyle("-fx-text-fill: red;");
-                return;
+            if(buyerBox.getValue() == null || landBox.getValue() == null || datePicker.getValue() == null || timeBox.getValue() == null) {
+                msg.setText("Fill all fields"); return;
             }
             try (Connection conn = DBConnection.getConnection()) {
-                // Combine Date and Time
-                String dateTime = datePicker.getValue().toString() + " " + timeBox.getValue() + ":00";
-                
-                String sql = "INSERT INTO visits (land_id, buyer_id, visit_date, status) VALUES (?, ?, ?, 'PLANNED')";
+                String dt = datePicker.getValue() + " " + timeBox.getValue() + ":00";
+                String sql = "INSERT INTO visits (land_id, buyer_id, agent_id, visit_date, status) VALUES (?, ?, ?, ?, 'PLANNED')";
                 PreparedStatement stmt = conn.prepareStatement(sql);
                 stmt.setInt(1, landBox.getValue().getId());
                 stmt.setInt(2, buyerBox.getValue().getId());
-                stmt.setString(3, dateTime); // MySQL handles string to DATETIME conversion
+                stmt.setInt(3, getAgentId());
+                stmt.setString(4, dt);
                 stmt.executeUpdate();
-                msg.setText("Visit Scheduled!");
-                msg.setStyle("-fx-text-fill: green;");
+                msg.setText("Visit Scheduled!"); msg.setStyle("-fx-text-fill: green;");
             } catch (Exception ex) { msg.setText("Error: " + ex.getMessage()); }
         });
 
-        layout.getChildren().addAll(title, new Label("Buyer"), buyerBox, new Label("Land"), landBox, new Label("Date & Time"), dateTimeBox, msg, btn);
-        contentArea.getChildren().clear();
-        contentArea.getChildren().add(layout);
+        layout.getChildren().addAll(title, buyerBox, landBox, dateTimeBox, msg, btn);
+        contentArea.getChildren().clear(); contentArea.getChildren().add(layout);
     }
 
-    // --- SALES (NEW!) ---
+    // =============================================================
+    // 5. SALES (My Sales)
+    // =============================================================
     @FXML
     public void showSales() {
         contentArea.getChildren().clear();
         VBox layout = new VBox(15);
-        Label title = new Label("Sales History");
+        Label title = new Label("My Sales History");
         title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
-        TableView<Sale> table = new TableView<>();
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-        TableColumn<Sale, String> colLand = new TableColumn<>("Land");
-        colLand.setCellValueFactory(new PropertyValueFactory<>("landLocation"));
-        TableColumn<Sale, String> colBuyer = new TableColumn<>("Buyer");
-        colBuyer.setCellValueFactory(new PropertyValueFactory<>("buyerName"));
-        TableColumn<Sale, Double> colPrice = new TableColumn<>("Final Price");
-        colPrice.setCellValueFactory(new PropertyValueFactory<>("price"));
-        TableColumn<Sale, String> colDate = new TableColumn<>("Date");
-        colDate.setCellValueFactory(new PropertyValueFactory<>("date"));
-
-        table.getColumns().addAll(colLand, colBuyer, colPrice, colDate);
-
+        TableView<Sale> table = createSaleTable(); // <--- Uses helper below
         ObservableList<Sale> data = FXCollections.observableArrayList();
         String sql = "SELECT s.sale_id, l.location, b.name, s.final_price, s.sale_date " +
-                     "FROM sales s JOIN lands l ON s.land_id = l.land_id JOIN buyers b ON s.buyer_id = b.buyer_id";
-        
+                     "FROM sales s JOIN lands l ON s.land_id = l.land_id JOIN buyers b ON s.buyer_id = b.buyer_id " +
+                     "WHERE s.agent_id = ?";
+
         try (Connection conn = DBConnection.getConnection();
-             ResultSet rs = conn.createStatement().executeQuery(sql)) {
-            while (rs.next()) {
-                data.add(new Sale(rs.getInt("sale_id"), rs.getString("location"), rs.getString("name"), rs.getDouble("final_price"), rs.getString("sale_date")));
-            }
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, getAgentId());
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) data.add(new Sale(rs.getInt("sale_id"), rs.getString("location"), rs.getString("name"), rs.getDouble("final_price"), rs.getString("sale_date")));
         } catch (Exception e) { e.printStackTrace(); }
         table.setItems(data);
+
         layout.getChildren().addAll(title, table);
         contentArea.getChildren().add(layout);
     }
 
     @FXML
     public void showRecordSale() {
-        VBox layout = new VBox(15);
-        layout.setStyle("-fx-background-color: white; -fx-padding: 30;");
-        layout.setMaxWidth(500);
-
-        Label title = new Label("Record New Sale");
-        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
-
-        ComboBox<Land> landBox = new ComboBox<>();
-        landBox.setPromptText("Select Land (Available only)");
-        landBox.setPrefWidth(300);
-        loadLands(landBox);
-
-        ComboBox<Buyer> buyerBox = new ComboBox<>();
-        buyerBox.setPromptText("Select Buyer");
-        buyerBox.setPrefWidth(300);
-        loadBuyers(buyerBox);
-
-        TextField priceField = new TextField(); 
-        priceField.setPromptText("Final Sale Price (FCFA)");
-
+        VBox layout = new VBox(15); layout.setStyle("-fx-background-color: white; -fx-padding: 30;"); layout.setMaxWidth(500);
+        Label title = new Label("Record Sale"); title.setStyle("-fx-font-size: 20px;");
+        
+        ComboBox<Land> landBox = new ComboBox<>(); landBox.setPromptText("Select Land"); loadAllLands(landBox);
+        ComboBox<Buyer> buyerBox = new ComboBox<>(); buyerBox.setPromptText("Select Your Buyer"); loadMyBuyers(buyerBox);
+        TextField priceField = new TextField(); priceField.setPromptText("Final Price");
         DatePicker datePicker = new DatePicker(LocalDate.now());
-
-        Button btn = new Button("Confirm Sale");
-        btn.setStyle("-fx-background-color: #D35400; -fx-text-fill: white; -fx-font-weight: bold;");
+        Button btn = new Button("Confirm"); btn.setStyle("-fx-background-color: #D35400; -fx-text-fill: white;");
         Label msg = new Label();
 
         btn.setOnAction(e -> {
-            if (landBox.getValue() == null || buyerBox.getValue() == null || priceField.getText().isEmpty()) {
-                msg.setText("Fill all fields!");
-                return;
-            }
-            
-            Connection conn = null;
-            try {
-                conn = DBConnection.getConnection();
-                conn.setAutoCommit(false); // Start Transaction
-
-                // 1. Insert Sale
-                String sqlSale = "INSERT INTO sales (land_id, buyer_id, final_price, sale_date, payment_type) VALUES (?, ?, ?, ?, 'FULL')";
+            try (Connection conn = DBConnection.getConnection()) {
+                conn.setAutoCommit(false);
+                String sqlSale = "INSERT INTO sales (land_id, buyer_id, agent_id, final_price, sale_date, payment_type) VALUES (?, ?, ?, ?, ?, 'FULL')";
                 PreparedStatement stmtSale = conn.prepareStatement(sqlSale);
                 stmtSale.setInt(1, landBox.getValue().getId());
                 stmtSale.setInt(2, buyerBox.getValue().getId());
-                stmtSale.setDouble(3, Double.parseDouble(priceField.getText()));
-                stmtSale.setDate(4, java.sql.Date.valueOf(datePicker.getValue()));
+                stmtSale.setInt(3, getAgentId());
+                stmtSale.setDouble(4, Double.parseDouble(priceField.getText()));
+                stmtSale.setDate(5, java.sql.Date.valueOf(datePicker.getValue()));
                 stmtSale.executeUpdate();
 
-                // 2. Update Land Status
-                String sqlLand = "UPDATE lands SET status = 'SOLD' WHERE land_id = ?";
-                PreparedStatement stmtLand = conn.prepareStatement(sqlLand);
+                PreparedStatement stmtLand = conn.prepareStatement("UPDATE lands SET status='SOLD' WHERE land_id=?");
                 stmtLand.setInt(1, landBox.getValue().getId());
                 stmtLand.executeUpdate();
 
-                conn.commit(); // Commit Transaction
-                msg.setText("Sale Recorded Successfully!");
-                msg.setStyle("-fx-text-fill: green;");
-                
-                // Refresh list so the sold land disappears
-                loadLands(landBox);
-                priceField.clear();
-
-            } catch (Exception ex) {
-                try { if(conn != null) conn.rollback(); } catch(SQLException se) {}
-                msg.setText("Error: " + ex.getMessage());
-            } finally {
-                try { if(conn != null) conn.close(); } catch(SQLException se) {}
-            }
+                conn.commit();
+                msg.setText("Sale Recorded!"); msg.setStyle("-fx-text-fill: green;");
+                loadAllLands(landBox);
+            } catch (Exception ex) { msg.setText("Error: " + ex.getMessage()); }
         });
-
-        layout.getChildren().addAll(title, new Label("Land"), landBox, new Label("Buyer"), buyerBox, new Label("Final Price"), priceField, new Label("Date"), datePicker, msg, btn);
-        contentArea.getChildren().clear();
-        contentArea.getChildren().add(layout);
+        
+        layout.getChildren().addAll(title, landBox, buyerBox, priceField, datePicker, msg, btn);
+        contentArea.getChildren().clear(); contentArea.getChildren().add(layout);
     }
-    
-    // --- SMART RECOMMENDER ---
+
+    // =============================================================
+    // 6. SMART RECOMMENDER
+    // =============================================================
     @FXML
     public void showSmartRecommender() {
         VBox layout = new VBox(15);
         Label title = new Label("Smart Recommendations");
         title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
-        ComboBox<Buyer> buyerBox = new ComboBox<>();
-        buyerBox.setPromptText("Select a Buyer...");
-        buyerBox.setPrefWidth(300);
-        loadBuyers(buyerBox);
-
-        Button btn = new Button("Find Matches");
-        btn.setStyle("-fx-background-color: #2980B9; -fx-text-fill: white;");
-
+        ComboBox<Buyer> buyerBox = new ComboBox<>(); buyerBox.setPromptText("Select Your Buyer..."); buyerBox.setPrefWidth(300);
+        loadMyBuyers(buyerBox);
+        Button btn = new Button("Find Matches"); btn.setStyle("-fx-background-color: #2980B9; -fx-text-fill: white;");
         VBox results = new VBox(10);
-        ScrollPane scroll = new ScrollPane(results);
-        scroll.setFitToWidth(true);
-        scroll.setStyle("-fx-background-color: transparent;");
-
+        ScrollPane scroll = new ScrollPane(results); scroll.setFitToWidth(true); scroll.setStyle("-fx-background-color: transparent;");
+        
         btn.setOnAction(e -> {
             Buyer selected = buyerBox.getValue();
-            if (selected == null) return;
+            if(selected == null) return;
             results.getChildren().clear();
             
-            String sql = "SELECT * FROM lands WHERE status='AVAILABLE' AND price <= ? " +
-                         "ORDER BY CASE WHEN location LIKE ? THEN 1 ELSE 2 END, price ASC";
-            
-            try (Connection conn = DBConnection.getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-                
+            String sql = "SELECT * FROM lands WHERE status='AVAILABLE' AND price <= ? ORDER BY CASE WHEN location LIKE ? THEN 1 ELSE 2 END, price ASC";
+            try (Connection conn = DBConnection.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setDouble(1, selected.getBudget());
                 stmt.setString(2, "%" + selected.getLocation() + "%");
-                
                 ResultSet rs = stmt.executeQuery();
                 boolean found = false;
-                
                 while(rs.next()) {
                     found = true;
-                    HBox card = new HBox(15);
-                    card.setStyle("-fx-background-color: white; -fx-padding: 10; -fx-border-color: #BDC3C7; -fx-border-radius: 5;");
-                    
-                    String loc = rs.getString("location");
-                    boolean isMatch = loc.toLowerCase().contains(selected.getLocation().toLowerCase());
-                    
-                    Label l1 = new Label(loc); l1.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+                    HBox card = new HBox(15); card.setStyle("-fx-background-color: white; -fx-padding: 10; -fx-border-color: #BDC3C7; -fx-border-radius: 5;");
+                    Label l1 = new Label(rs.getString("location")); l1.setStyle("-fx-font-weight: bold;");
                     Label l2 = new Label(currencyFormatter.format(rs.getDouble("price")) + " FCFA");
-                    Label badge = new Label(isMatch ? "Location Match" : "Budget Fit");
-                    badge.setStyle("-fx-background-color: " + (isMatch?"#2ECC71":"#F1C40F") + "; -fx-text-fill: white; -fx-padding: 3 8; -fx-background-radius: 10;");
-                    
+                    boolean match = rs.getString("location").toLowerCase().contains(selected.getLocation().toLowerCase());
+                    Label badge = new Label(match ? "Location Match" : "Budget Fit");
+                    badge.setStyle("-fx-background-color: " + (match?"#2ECC71":"#F1C40F") + "; -fx-text-fill: white; -fx-padding: 3 8; -fx-background-radius: 10;");
                     Region r = new Region(); HBox.setHgrow(r, Priority.ALWAYS);
                     card.getChildren().addAll(l1, r, l2, badge);
                     results.getChildren().add(card);
                 }
-                
-                if(!found) results.getChildren().add(new Label("No properties found within budget for this buyer."));
-                
+                if(!found) results.getChildren().add(new Label("No matches found."));
             } catch (Exception ex) { ex.printStackTrace(); }
         });
-
         layout.getChildren().addAll(title, new HBox(10, buyerBox, btn), new Separator(), scroll);
-        contentArea.getChildren().clear();
-        contentArea.getChildren().add(layout);
+        contentArea.getChildren().clear(); contentArea.getChildren().add(layout);
     }
 
-    // --- HELPERS ---
-    private void loadBuyers(ComboBox<Buyer> box) {
+    // =============================================================
+    // 7. TABLE CREATION HELPERS (The Missing Methods)
+    // =============================================================
+
+    private TableView<Land> createLandTable() {
+        TableView<Land> table = new TableView<>();
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        TableColumn<Land, String> c1 = new TableColumn<>("Location"); c1.setCellValueFactory(new PropertyValueFactory<>("location"));
+        TableColumn<Land, Double> c2 = new TableColumn<>("Area"); c2.setCellValueFactory(new PropertyValueFactory<>("area"));
+        TableColumn<Land, Double> c3 = new TableColumn<>("Price"); c3.setCellValueFactory(new PropertyValueFactory<>("price"));
+        TableColumn<Land, String> c4 = new TableColumn<>("Category"); c4.setCellValueFactory(new PropertyValueFactory<>("category"));
+        TableColumn<Land, String> c5 = new TableColumn<>("Status"); c5.setCellValueFactory(new PropertyValueFactory<>("status"));
+        table.getColumns().addAll(c1, c2, c3, c4, c5);
+        return table;
+    }
+
+    private TableView<Buyer> createBuyerTable() {
+        TableView<Buyer> table = new TableView<>();
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        TableColumn<Buyer, String> c1 = new TableColumn<>("Name"); c1.setCellValueFactory(new PropertyValueFactory<>("name"));
+        TableColumn<Buyer, String> c2 = new TableColumn<>("Phone"); c2.setCellValueFactory(new PropertyValueFactory<>("phone"));
+        TableColumn<Buyer, Double> c3 = new TableColumn<>("Budget"); c3.setCellValueFactory(new PropertyValueFactory<>("budget"));
+        TableColumn<Buyer, String> c4 = new TableColumn<>("Location"); c4.setCellValueFactory(new PropertyValueFactory<>("location"));
+        table.getColumns().addAll(c1, c2, c3, c4);
+        return table;
+    }
+
+    private TableView<Visit> createVisitTable() {
+        TableView<Visit> table = new TableView<>();
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        TableColumn<Visit, String> c1 = new TableColumn<>("Date"); c1.setCellValueFactory(new PropertyValueFactory<>("date"));
+        TableColumn<Visit, String> c2 = new TableColumn<>("Buyer"); c2.setCellValueFactory(new PropertyValueFactory<>("buyerName"));
+        TableColumn<Visit, String> c3 = new TableColumn<>("Land"); c3.setCellValueFactory(new PropertyValueFactory<>("landLocation"));
+        TableColumn<Visit, String> c4 = new TableColumn<>("Status"); c4.setCellValueFactory(new PropertyValueFactory<>("status"));
+        table.getColumns().addAll(c1, c2, c3, c4);
+        return table;
+    }
+
+    private TableView<Sale> createSaleTable() {
+        TableView<Sale> table = new TableView<>();
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        TableColumn<Sale, String> c1 = new TableColumn<>("Land"); c1.setCellValueFactory(new PropertyValueFactory<>("landLocation"));
+        TableColumn<Sale, String> c2 = new TableColumn<>("Buyer"); c2.setCellValueFactory(new PropertyValueFactory<>("buyerName"));
+        TableColumn<Sale, Double> c3 = new TableColumn<>("Price"); c3.setCellValueFactory(new PropertyValueFactory<>("price"));
+        TableColumn<Sale, String> c4 = new TableColumn<>("Date"); c4.setCellValueFactory(new PropertyValueFactory<>("date"));
+        table.getColumns().addAll(c1, c2, c3, c4);
+        return table;
+    }
+
+    // =============================================================
+    // 8. OTHER HELPERS
+    // =============================================================
+
+    private void loadMyBuyers(ComboBox<Buyer> box) {
         ObservableList<Buyer> list = FXCollections.observableArrayList();
         try (Connection conn = DBConnection.getConnection();
-             ResultSet rs = conn.createStatement().executeQuery("SELECT * FROM buyers")) {
-            while (rs.next()) list.add(new Buyer(rs.getInt("buyer_id"), rs.getString("name"), rs.getString("phone"), rs.getDouble("budget_max"), rs.getString("preferred_location")));
+             PreparedStatement stmt = conn.prepareStatement("SELECT * FROM buyers WHERE agent_id = ?")) {
+            stmt.setInt(1, getAgentId());
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) list.add(mapBuyer(rs));
         } catch (Exception e) {}
         box.setItems(list);
     }
 
-    private void loadLands(ComboBox<Land> box) {
+    private void loadAllLands(ComboBox<Land> box) {
         ObservableList<Land> list = FXCollections.observableArrayList();
         try (Connection conn = DBConnection.getConnection();
              ResultSet rs = conn.createStatement().executeQuery("SELECT * FROM lands WHERE status='AVAILABLE'")) {
-            while (rs.next()) list.add(new Land(rs.getInt("land_id"), rs.getString("location"), rs.getDouble("area_sqm"), rs.getDouble("price"), rs.getString("category"), rs.getString("status")));
+            while (rs.next()) list.add(mapLand(rs));
         } catch (Exception e) {}
         box.setItems(list);
     }
 
+    private Land mapLand(ResultSet rs) throws SQLException {
+        return new Land(rs.getInt("land_id"), rs.getString("location"), rs.getDouble("area_sqm"), rs.getDouble("price"), rs.getString("category"), rs.getString("status"));
+    }
+
+    private Buyer mapBuyer(ResultSet rs) throws SQLException {
+        return new Buyer(rs.getInt("buyer_id"), rs.getString("name"), rs.getString("phone"), rs.getDouble("budget_max"), rs.getString("preferred_location"));
+    }
+
     private VBox createStatCard(String title, String value, String color) {
-        VBox c = new VBox(5);
-        c.setStyle("-fx-background-color: " + color + "; -fx-padding: 15; -fx-background-radius: 5;");
-        c.setPrefWidth(150);
+        VBox c = new VBox(5); c.setStyle("-fx-background-color: " + color + "; -fx-padding: 15; -fx-background-radius: 5;"); c.setPrefWidth(150);
         Label v = new Label(value); v.setStyle("-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold;");
-        Label t = new Label(title); t.setStyle("-fx-text-fill: white;");
-        c.getChildren().addAll(v, t);
-        return c;
+        Label t = new Label(title); t.setStyle("-fx-text-fill: white;"); c.getChildren().addAll(v, t); return c;
     }
-
+    
     private String getCount(String sql) {
-        try (Connection conn = DBConnection.getConnection();
-             ResultSet rs = conn.createStatement().executeQuery(sql)) {
+        try (Connection conn = DBConnection.getConnection(); ResultSet rs = conn.createStatement().executeQuery(sql)) {
             if (rs.next()) return String.valueOf(rs.getInt(1));
-        } catch (Exception e) { return "0"; }
-        return "0";
+        } catch (Exception e) {} return "0";
     }
 
-    @FXML public void logout() {
+    @FXML
+    public void logout() {
+        UserSession.cleanSession();
         try {
             Stage stage = (Stage) contentArea.getScene().getWindow();
             stage.setScene(new Scene(FXMLLoader.load(getClass().getResource("/fxml/Login.fxml")), 600, 400));
