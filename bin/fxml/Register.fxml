@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.collections.*?>
+<?import java.lang.String?>
+
+<StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" 
+           fx:controller="com.slsms.controller.RegisterController"
+           stylesheets="@../css/style.css">
+    
+    <VBox alignment="CENTER" spacing="15" maxWidth="400" maxHeight="500" styleClass="login-card">
+        <Label text="Create Account" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2C3E50;"/>
+        
+        <TextField fx:id="fullNameField" promptText="Full Name"/>
+        <TextField fx:id="usernameField" promptText="Choose Username"/>
+        <PasswordField fx:id="passwordField" promptText="Choose Password"/>
+        
+        <Label text="Select Role:" style="-fx-text-fill: #7F8C8D;"/>
+        <ComboBox fx:id="roleComboBox" promptText="Select Role" maxWidth="Infinity">
+            <items>
+                <FXCollections fx:factory="observableArrayList">
+                    <String fx:value="ADMIN"/>
+                    <String fx:value="AGENT"/>
+                </FXCollections>
+            </items>
+        </ComboBox>
+
+        <Label fx:id="msgLabel" textFill="red"/>
+        
+        <Button text="Register" onAction="#handleRegister" styleClass="button-primary" maxWidth="Infinity"/>
+        <Hyperlink text="Already have an account? Login" onAction="#goToLogin"/>
+    </VBox>
+</StackPane>

@@ -1,0 +1,19 @@
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" 
+            fx:controller="com.slsms.controller.AdminController"
+            stylesheets="@../css/style.css">
+    <left>
+        <VBox styleClass="sidebar" prefWidth="220" spacing="10">
+            <Label text="ADMIN PANEL" styleClass="sidebar-label"/>
+            <Button text="Global Analytics" styleClass="button-menu" maxWidth="Infinity"/>
+            <Button text="Manage Agents" styleClass="button-menu" maxWidth="Infinity"/>
+            <Button text="System Settings" styleClass="button-menu" maxWidth="Infinity"/>
+            <Separator/>
+            <Button text="Logout" styleClass="button-menu" maxWidth="Infinity" onAction="#logout"/>
+        </VBox>
+    </left>
+    <center>
+        <StackPane>
+            <Label text="Welcome Admin" style="-fx-font-size: 24px;"/>
+        </StackPane>
+    </center>
+</BorderPane>

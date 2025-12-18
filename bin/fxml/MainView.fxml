@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" 
+            fx:controller="com.slsms.controller.MainController"
+            stylesheets="@../css/style.css">
+
+    <!-- LEFT SIDEBAR -->
+    <left>
+        <VBox styleClass="sidebar" prefWidth="220" spacing="10">
+            <Label text="SLSMS" styleClass="sidebar-label"/>
+            
+            <Button text="Dashboard" styleClass="button-menu" maxWidth="Infinity" onAction="#showDashboard"/>
+            <Button text="Land Inventory" styleClass="button-menu" maxWidth="Infinity" onAction="#showInventory"/>
+            <Button text="Buyers" styleClass="button-menu" maxWidth="Infinity" onAction="#showBuyers"/>
+            <Button text="Smart Recommender" styleClass="button-menu" maxWidth="Infinity" onAction="#showSmartFeature"/>
+        </VBox>
+    </left>
+
+    <!-- CENTER DYNAMIC CONTENT -->
+    <center>
+        <StackPane fx:id="contentArea" style="-fx-padding: 20;">
+            <Label text="Welcome to SLSMS Dashboard" style="-fx-font-size: 20px;"/>
+        </StackPane>
+    </center>
+    
+</BorderPane>
