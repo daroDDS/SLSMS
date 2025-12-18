@@ -8,14 +8,22 @@
             stylesheets="@../css/style.css">
     
     <left>
-        <VBox styleClass="sidebar" prefWidth="250" spacing="5">
+        <VBox styleClass="sidebar" prefWidth="250" spacing="2">
             <VBox styleClass="sidebar-header" style="-fx-background-color: #1A252F; -fx-padding: 20;">
                 <Label text="SLSMS ADMIN" styleClass="sidebar-label" style="-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold;"/>
             </VBox>
             
-            <Button text="Dashboard Analytics" styleClass="button-menu" maxWidth="Infinity" onAction="#showDashboard"/>
+            <Label text="ACCOUNT" style="-fx-text-fill: #7F8C8D; -fx-padding: 10 0 5 15; -fx-font-size: 11px;"/>
+            <Button text="My Profile" styleClass="button-menu" maxWidth="Infinity" onAction="#showProfile"/>
+            <Button text="Dashboard Overview" styleClass="button-menu" maxWidth="Infinity" onAction="#showDashboard"/>
+            
+            <Label text="MANAGEMENT" style="-fx-text-fill: #7F8C8D; -fx-padding: 10 0 5 15; -fx-font-size: 11px;"/>
             <Button text="Manage Agents" styleClass="button-menu" maxWidth="Infinity" onAction="#showAgents"/>
-            <Button text="System Settings" styleClass="button-menu" maxWidth="Infinity" onAction="#showSettings"/>
+            
+            <Label text="GLOBAL REPORTS (Read Only)" style="-fx-text-fill: #7F8C8D; -fx-padding: 10 0 5 15; -fx-font-size: 11px;"/>
+            <Button text="All Sales" styleClass="button-menu" maxWidth="Infinity" onAction="#showAllSales"/>
+            <Button text="All Buyers" styleClass="button-menu" maxWidth="Infinity" onAction="#showAllBuyers"/>
+            <Button text="All Visits" styleClass="button-menu" maxWidth="Infinity" onAction="#showAllVisits"/>
             
             <Region VBox.vgrow="ALWAYS"/>
             <Button text="Logout" styleClass="button-menu" maxWidth="Infinity" onAction="#logout"/>
@@ -23,7 +31,7 @@
     </left>
 
     <center>
-        <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;">
+        <ScrollPane fitToWidth="true" fitToHeight="true" style="-fx-background-color: transparent;">
             <StackPane fx:id="contentArea" style="-fx-padding: 30; -fx-background-color: #ECF0F1;">
             </StackPane>
         </ScrollPane>
