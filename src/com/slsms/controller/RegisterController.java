@@ -31,6 +31,12 @@ public class RegisterController {
 
         try {
             Connection conn = DBConnection.getConnection();
+            if (conn == null) {
+                msgLabel.setStyle("-fx-text-fill: red;");
+                msgLabel.setText("Database Connection Failed!");
+                return;
+            }
+
             String query = "INSERT INTO users (full_name, username, password, role) VALUES (?, ?, ?, ?)";
             PreparedStatement stmt = conn.prepareStatement(query);
             stmt.setString(1, name);
@@ -41,22 +47,25 @@ public class RegisterController {
             int result = stmt.executeUpdate();
             if (result > 0) {
                 msgLabel.setStyle("-fx-text-fill: green;");
-                msgLabel.setText("Registration Successful!");
+                msgLabel.setText("Registration Successful! Please Login.");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            e.printStackTrace(); // Check your console for "Driver not found" errors
             msgLabel.setStyle("-fx-text-fill: red;");
-            msgLabel.setText("Username already exists!");
+            msgLabel.setText("Error: " + e.getMessage());
         }
     }
-
+    
+    // Also ensure goToLogin path is correct:
     @FXML
     private void goToLogin() {
         try {
             Stage stage = (Stage) usernameField.getScene().getWindow();
-            stage.setScene(new Scene(FXMLLoader.load(getClass().getResource("/resources/fxml/Login.fxml")), 600, 400));
+            stage.setScene(new Scene(FXMLLoader.load(getClass().getResource("/fxml/Login.fxml")), 600, 400));
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+
 }
