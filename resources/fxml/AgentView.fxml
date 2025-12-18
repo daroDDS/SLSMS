@@ -8,24 +8,36 @@
             stylesheets="@../css/style.css">
     
     <left>
-        <VBox styleClass="sidebar" prefWidth="240">
-            <VBox styleClass="sidebar-header">
-                <Label text="AGENT PORTAL" styleClass="sidebar-label"/>
+        <VBox styleClass="sidebar" prefWidth="240" spacing="2">
+            <VBox styleClass="sidebar-header" style="-fx-background-color: #1A252F; -fx-padding: 20;">
+                <Label text="AGENT PORTAL" styleClass="sidebar-label" style="-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;"/>
             </VBox>
             
-            <Button text="🏠  My Lands" styleClass="button-menu" maxWidth="Infinity" onAction="#showAddLand"/>
-            <Button text="👥  Register Buyer" styleClass="button-menu" maxWidth="Infinity" onAction="#showRegisterBuyer"/>
-            <Button text="🧠  Smart Recommender" styleClass="button-menu" maxWidth="Infinity" onAction="#showSmartRecommender"/>
+            <Label text="MAIN" style="-fx-text-fill: #7F8C8D; -fx-padding: 10 0 5 15; -fx-font-size: 11px;"/>
+            <Button text="Dashboard" styleClass="button-menu" maxWidth="Infinity" onAction="#showDashboard"/>
+            <Button text="Smart Recommender" styleClass="button-menu" maxWidth="Infinity" onAction="#showSmartRecommender"/>
+
+            <Label text="MANAGEMENT" style="-fx-text-fill: #7F8C8D; -fx-padding: 10 0 5 15; -fx-font-size: 11px;"/>
+            <Button text="Inventory (Lands)" styleClass="button-menu" maxWidth="Infinity" onAction="#showInventory"/>
+            <Button text="Buyers" styleClass="button-menu" maxWidth="Infinity" onAction="#showBuyers"/>
+            <Button text="Visits Calendar" styleClass="button-menu" maxWidth="Infinity" onAction="#showVisits"/>
+            <Button text="My Sales" styleClass="button-menu" maxWidth="Infinity" onAction="#showSales"/>
+
+            <Label text="ACTIONS" style="-fx-text-fill: #7F8C8D; -fx-padding: 10 0 5 15; -fx-font-size: 11px;"/>
+            <Button text="+ Add Land" styleClass="button-menu" maxWidth="Infinity" onAction="#showAddLand"/>
+            <Button text="+ Register Buyer" styleClass="button-menu" maxWidth="Infinity" onAction="#showRegisterBuyer"/>
+            <Button text="+ Schedule Visit" styleClass="button-menu" maxWidth="Infinity" onAction="#showScheduleVisit"/>
             
             <Region VBox.vgrow="ALWAYS"/>
-            <Separator opacity="0.1"/>
-            <Button text="🚪  Logout" styleClass="button-menu" maxWidth="Infinity" onAction="#logout"/>
+            <Button text="Logout" styleClass="button-menu" maxWidth="Infinity" onAction="#logout"/>
         </VBox>
     </left>
 
     <center>
-        <StackPane fx:id="contentArea" style="-fx-padding: 30;">
-            <Label text="Select an action from the menu" style="-fx-text-fill: #7F8C8D;"/>
-        </StackPane>
+        <!-- ScrollPane ensures tables don't get cut off -->
+        <ScrollPane fitToWidth="true" fitToHeight="true" style="-fx-background-color: transparent;">
+            <StackPane fx:id="contentArea" style="-fx-padding: 30; -fx-background-color: #ECF0F1;">
+            </StackPane>
+        </ScrollPane>
     </center>
 </BorderPane>

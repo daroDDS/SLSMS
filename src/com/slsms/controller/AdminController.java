@@ -7,9 +7,11 @@ import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
-import java.sql.Statement;
+import java.text.NumberFormat;
+import java.util.Locale;
 
 public class AdminController {
 
@@ -17,65 +19,88 @@ public class AdminController {
 
     @FXML
     public void initialize() {
-        showDashboard(); // Load dashboard by default
+        showDashboard(); // 
     }
 
+    // --- DASHBOARD ---
     @FXML
-    private void showDashboard() {
+    public void showDashboard() {
         contentArea.getChildren().clear();
 
-        // Create Dashboard Layout Programmatically for simplicity
         VBox dashboard = new VBox(20);
-        
         Label title = new Label("Dashboard Overview");
-        title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2C3E50;");
+        title.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #2C3E50;");
 
-        // KPI Cards Row
-        HBox statsBox = new HBox(20);
-        statsBox.getChildren().addAll(
-            createStatCard("Total Revenue", getDbCount("SELECT SUM(final_price) FROM sales") + " $"),
-            createStatCard("Lands Sold", getDbCount("SELECT COUNT(*) FROM sales")),
-            createStatCard("Active Agents", getDbCount("SELECT COUNT(*) FROM users WHERE role='AGENT'"))
+        HBox statsContainer = new HBox(20);
+        
+        // 1. Get Data from DB
+        double revenue = getDoubleValue("SELECT SUM(final_price) FROM sales");
+        int landsSold = getIntValue("SELECT COUNT(*) FROM sales");
+        int activeAgents = getIntValue("SELECT COUNT(*) FROM users WHERE role='AGENT'");
+
+        // 2. Format Currency (FCFA)
+        String formattedRevenue = NumberFormat.getInstance(Locale.FRENCH).format(revenue);
+
+        statsContainer.getChildren().addAll(
+            createCard("Total Revenue", formattedRevenue + " FCFA", "#2980B9"),
+            createCard("Lands Sold", String.valueOf(landsSold), "#27AE60"),
+            createCard("Active Agents", String.valueOf(activeAgents), "#8E44AD")
         );
 
-        // Recent Activity Section (Placeholder)
-        VBox recentActivity = new VBox(10);
-        recentActivity.getStyleClass().add("content-card");
-        recentActivity.getChildren().add(new Label("Recent Sales Activity"));
-        recentActivity.getChildren().add(new Label("• Villa in Almadies sold for $250,000"));
-        recentActivity.getChildren().add(new Label("• Plot in Diamniadio sold for $15,000"));
-
-        dashboard.getChildren().addAll(title, statsBox, recentActivity);
+        dashboard.getChildren().addAll(title, statsContainer);
         contentArea.getChildren().add(dashboard);
     }
 
-    private VBox createStatCard(String title, String value) {
+    // --- MANAGE AGENTS (Placeholder) ---
+    @FXML
+    public void showAgents() {
+        contentArea.getChildren().clear();
+        Label title = new Label("Manage Agents");
+        title.setStyle("-fx-font-size: 24px; -fx-text-fill: #2C3E50;");
+        Label sub = new Label("Agent list functionality coming soon...");
+        contentArea.getChildren().addAll(new VBox(10, title, sub));
+    }
+
+    // --- SETTINGS (Placeholder) ---
+    @FXML
+    public void showSettings() {
+        contentArea.getChildren().clear();
+        Label title = new Label("System Settings");
+        title.setStyle("-fx-font-size: 24px; -fx-text-fill: #2C3E50;");
+        Label sub = new Label("Configuration options...");
+        contentArea.getChildren().addAll(new VBox(10, title, sub));
+    }
+
+    // --- HELPERS ---
+    private VBox createCard(String title, String value, String colorHex) {
         VBox card = new VBox(10);
-        card.getStyleClass().add("stat-card");
+        card.setStyle("-fx-background-color: " + colorHex + "; -fx-padding: 20; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 1);");
         card.setPrefWidth(250);
+
+        Label lblVal = new Label(value);
+        lblVal.setStyle("-fx-text-fill: white; -fx-font-size: 22px; -fx-font-weight: bold;");
         
         Label lblTitle = new Label(title);
-        lblTitle.getStyleClass().add("stat-label");
-        
-        Label lblValue = new Label(value);
-        lblValue.getStyleClass().add("stat-value");
-        
-        card.getChildren().addAll(lblValue, lblTitle);
+        lblTitle.setStyle("-fx-text-fill: rgba(255,255,255,0.8); -fx-font-size: 14px;");
+
+        card.getChildren().addAll(lblVal, lblTitle);
         return card;
     }
 
-    private String getDbCount(String query) {
+    private double getDoubleValue(String query) {
         try (Connection conn = DBConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
-            if (rs.next()) {
-                String val = rs.getString(1);
-                return val == null ? "0" : val;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return "0";
+             ResultSet rs = conn.createStatement().executeQuery(query)) {
+            if (rs.next()) return rs.getDouble(1);
+        } catch (Exception e) { e.printStackTrace(); }
+        return 0.0;
+    }
+
+    private int getIntValue(String query) {
+        try (Connection conn = DBConnection.getConnection();
+             ResultSet rs = conn.createStatement().executeQuery(query)) {
+            if (rs.next()) return rs.getInt(1);
+        } catch (Exception e) { e.printStackTrace(); }
+        return 0;
     }
 
     @FXML
